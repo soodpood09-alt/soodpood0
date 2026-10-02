@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Uses the official pre-configured Kivy environment (no slow system downloads)
     container:
       image: kivy/buildozer:latest
 
@@ -18,23 +17,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Speeds up future runs by saving the compiled project dependencies
       - name: Cache Buildozer Project Folder
         uses: actions/cache@v4
         with:
           path: .buildozer
           key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
 
-      # Compiles the APK and safely forces root permissions / license acceptances
+      # Explicitly pointing Buildozer to the GitHub Workspace directory
       - name: Build APK with Buildozer
         env:
           BUILDOZER_ALLOW_KIVY_BUILD_FROM_ROOT: 1
         run: |
+          cd $GITHUB_WORKSPACE
           yes | buildozer android debug
 
+      # Adjusted path to find the APK inside the workspace directory
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: BulletDroid-debug-APK
-          path: bin/*.apk
+          path: ${{ github.workspace }}/bin/*.apk
           
