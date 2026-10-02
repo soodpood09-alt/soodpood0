@@ -9,43 +9,58 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # Explicitly locked to a highly stable environment
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Setup Java required for Android SDK toolchain
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+      # Install all native Ubuntu dependencies required by Buildozer toolchain
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo5 \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            build-essential
 
-      # Caching buildozer global dependencies prevents timeout errors
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install Cython==0.29.33 virtualenv buildozer setuptools
+
+      # Cache the Android SDK/NDK downloads to dramatically speed up future builds
       - name: Cache Buildozer Global Directory
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
           key: ${{ runner.os }}-buildozer-global-${{ hashFiles('buildozer.spec') }}
 
-      - name: Cache Buildozer Local Project Directory
-        uses: actions/cache@v4
-        with:
-          path: .buildozer
-          key: ${{ runner.os }}-buildozer-local-${{ hashFiles('buildozer.spec') }}
-
-      # Verified implementation using ArtemSBulgakov/buildozer-action
-      - name: Build APK with Buildozer Action
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
-        with:
-          command: buildozer android debug
-          repository_root: .
+      # Execute Buildozer natively and auto-accept Android SDK licenses
+      - name: Build APK with Buildozer
+        run: |
+          yes | buildozer -v android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: BulletDroid-debug-APK
-          path: ${{ steps.buildozer.outputs.filename }}
+          path: bin/*.apk
           
