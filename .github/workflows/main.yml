@@ -1,101 +1,51 @@
-name: Build APK
+name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ "main" ]
   pull_request:
-    branches:
-      - main
-      - master
+    branches: [ "main" ]
   workflow_dispatch:
 
-env:
-  JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
-  ANDROID_HOME: ${{ github.workspace }}/android-sdk
-
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
 
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      # Setup Java required for Android SDK toolchain
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
         with:
-          python-version: "3.11"
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Cache dependencies
+      # Caching buildozer global dependencies prevents timeout errors
+      - name: Cache Buildozer Global Directory
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/pip
-            ~/.buildozer
-            ${{ github.workspace }}/android-sdk
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec', 'requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-buildozer-
+          path: ~/.buildozer
+          key: ${{ runner.os }}-buildozer-global-${{ hashFiles('buildozer.spec') }}
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            git zip unzip openjdk-17-jdk \
-            zlib1g-dev libncurses5-dev libgtk-3-dev \
-            libjpeg-dev libtiff-dev libsdl2-dev \
-            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libmtdev-dev libgl1-mesa-dev libgles2-mesa-dev \
-            python3-pip python3-venv \
-            autoconf automake libtool pkg-config cmake ninja-build
+      - name: Cache Buildozer Local Project Directory
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-buildozer-local-${{ hashFiles('buildozer.spec') }}
 
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --upgrade buildozer cython
-          pip install -r requirements.txt 2>/dev/null || true
+      # Verified implementation using ArtemSBulgakov/buildozer-action
+      - name: Build APK with Buildozer Action
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          repository_root: .
 
-      - name: Build APK with buildozer
-        run: |
-          echo "Starting buildozer build..."
-          buildozer android debug 2>&1 | tee build.log
-          echo "✓ Build completed"
-
-      - name: Check for APK
-        run: |
-          if [ -f bin/*.apk ]; then
-            echo "✓ APK generated successfully"
-            ls -lh bin/*.apk
-          else
-            echo "✗ APK not found"
-            exit 1
-          fi
-
-      - name: Upload APK artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
-        if: success()
         with:
-          name: BulletDroid-APK
-          path: bin/*.apk
-          retention-days: 30
-
-      - name: Upload build log
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build-log
-          path: build.log
-          retention-days: 7
-
-      - name: Create Release (on main push)
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && success()
-        uses: softprops/action-gh-release@v1
-        with:
-          files: bin/*.apk
-          tag_name: build-${{ github.run_number }}
-          body: "Automated APK build #${{ github.run_number }}\n\n[Build log](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: BulletDroid-debug-APK
+          path: ${{ steps.buildozer.outputs.filename }}
+          
