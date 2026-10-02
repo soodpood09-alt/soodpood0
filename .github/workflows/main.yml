@@ -9,54 +9,26 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04 # Explicitly locked to a highly stable environment
+    runs-on: ubuntu-latest
+    # Run the entire job inside the official, pre-configured Kivy/Buildozer container
+    container:
+      image: kivy/buildozer:latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Install all native Ubuntu dependencies required by Buildozer toolchain
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            git \
-            zip \
-            unzip \
-            openjdk-17-jdk \
-            autoconf \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            libtinfo5 \
-            cmake \
-            libffi-dev \
-            libssl-dev \
-            build-essential
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Buildozer and Cython
-        run: |
-          pip install --upgrade pip
-          pip install Cython==0.29.33 virtualenv buildozer setuptools
-
-      # Cache the Android SDK/NDK downloads to dramatically speed up future builds
-      - name: Cache Buildozer Global Directory
+      # Cache the build directory to speed up compilation after the first run
+      - name: Cache Buildozer Project Folder
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer
-          key: ${{ runner.os }}-buildozer-global-${{ hashFiles('buildozer.spec') }}
+          path: .buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
 
-      # Execute Buildozer natively and auto-accept Android SDK licenses
+      # Build natively inside the container (Dependencies are already installed)
       - name: Build APK with Buildozer
         run: |
-          yes | buildozer -v android debug
+          buildozer android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
