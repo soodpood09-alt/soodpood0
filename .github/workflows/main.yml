@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Run the entire job inside the official, pre-configured Kivy/Buildozer container
+    # Uses the official pre-configured Kivy environment (no slow system downloads)
     container:
       image: kivy/buildozer:latest
 
@@ -18,17 +18,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Cache the build directory to speed up compilation after the first run
+      # Speeds up future runs by saving the compiled project dependencies
       - name: Cache Buildozer Project Folder
         uses: actions/cache@v4
         with:
           path: .buildozer
           key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
 
-      # Build natively inside the container (Dependencies are already installed)
+      # Compiles the APK and safely forces root permissions / license acceptances
       - name: Build APK with Buildozer
+        env:
+          BUILDOZER_ALLOW_KIVY_BUILD_FROM_ROOT: 1
         run: |
-          buildozer android debug
+          yes | buildozer android debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
