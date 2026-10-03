@@ -1,28 +1,28 @@
-name: Automatic F-Droid APK Builder
+name: Automatic IPTV Player Builder
 
 on:
   push:
     branches: [ "main", "master", "develop" ]
   pull_request:
     branches: [ "main", "master", "develop" ]
-  workflow_dispatch: 
+  workflow_dispatch: # Allows you to manually trigger this build from the GitHub Actions tab
 
 jobs:
-  build-f-droid:
-    name: Download and Compile F-Droid APK
+  build-iptv:
+    name: Download and Compile IPTV App
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout Workflow Repository
+    # Step 1: Checkout your empty workflow repository
     - name: Checkout Workflow Repository
       uses: actions/checkout@v4
 
-    # Step 2: Download the official F-Droid Source Code
-    - name: Download F-Droid Source Code
+    # Step 2: Automatically download the open-source IPTV Player Source Code
+    - name: Download IPTV Source Code
       uses: actions/checkout@v4
       with:
-        repository: 'f-droid/fdroidclient' 
-        path: 'fdroid-source'             
+        repository: 'm3u-player/Kodiak-Player' # Open-source Android IPTV player project
+        path: 'iptv-source'                     # Downloads it into a folder named iptv-source
 
     # Step 3: Set up Java Development Kit (JDK 17)
     - name: Set up JDK 17
@@ -31,9 +31,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Step 4: Prepare Gradle Wrapper
+    # Step 4: Prepare Gradle Wrapper if missing
     - name: Prepare Gradle Wrapper
-      working-directory: fdroid-source
+      working-directory: iptv-source
       run: |
         if [ ! -f ./gradlew ]; then
           echo "⚠️ gradlew wrapper missing. Generating a clean wrapper..."
@@ -42,18 +42,18 @@ jobs:
         fi
         chmod +x ./gradlew
 
-    # Step 5: Compile F-Droid
-    - name: Build F-Droid APK
-      working-directory: fdroid-source
+    # Step 5: Compile the IPTV source code into a Debug APK
+    - name: Build IPTV Player APK
+      working-directory: iptv-source
       run: ./gradlew assembleDebug
 
-    # Step 6: Dynamic discovery to target the artifact exactly where it was generated
-    - name: Locate and Upload Generated F-Droid APK
+    # Step 6: Dynamic discovery to find and upload the compiled IPTV player APK
+    - name: Locate and Upload IPTV APK
       uses: actions/upload-artifact@v4
       with:
-        name: official-fdroid-debug-apk
+        name: custom-iptv-player-apk
         path: |
-          fdroid-source/**/*.apk
+          iptv-source/**/*.apk
         if-no-files-found: error
         retention-days: 7
         
