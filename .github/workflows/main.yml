@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master", "develop" ]
   pull_request:
     branches: [ "main", "master", "develop" ]
-  workflow_dispatch: # Allows you to manually trigger this build from the GitHub Actions tab
+  workflow_dispatch: 
 
 jobs:
   build-iptv:
@@ -17,12 +17,12 @@ jobs:
     - name: Checkout Workflow Repository
       uses: actions/checkout@v4
 
-    # Step 2: Automatically download the open-source IPTV Player Source Code
+    # Step 2: Download the active public open-source IPTV Player Source Code
     - name: Download IPTV Source Code
       uses: actions/checkout@v4
       with:
-        repository: 'm3u-player/Kodiak-Player' # Open-source Android IPTV player project
-        path: 'iptv-source'                     # Downloads it into a folder named iptv-source
+        repository: 'anilg21/Next-Stream' # Active, public open-source Android IPTV Player
+        path: 'iptv-source'
 
     # Step 3: Set up Java Development Kit (JDK 17)
     - name: Set up JDK 17
@@ -31,7 +31,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Step 4: Prepare Gradle Wrapper if missing
+    # Step 4: Ensure the Gradle script executor is ready inside the folder
     - name: Prepare Gradle Wrapper
       working-directory: iptv-source
       run: |
@@ -42,16 +42,16 @@ jobs:
         fi
         chmod +x ./gradlew
 
-    # Step 5: Compile the IPTV source code into a Debug APK
+    # Step 5: Compile the app code into a runnable Debug APK
     - name: Build IPTV Player APK
       working-directory: iptv-source
       run: ./gradlew assembleDebug
 
-    # Step 6: Dynamic discovery to find and upload the compiled IPTV player APK
+    # Step 6: Scan the build environment dynamically to upload your finished player
     - name: Locate and Upload IPTV APK
       uses: actions/upload-artifact@v4
       with:
-        name: custom-iptv-player-apk
+        name: next-stream-iptv-player
         path: |
           iptv-source/**/*.apk
         if-no-files-found: error
