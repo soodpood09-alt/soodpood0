@@ -9,44 +9,55 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:latest
+    runs-on: ubuntu-24.04
+
+    # This globally forces Buildozer to ignore the root warning across ALL steps
+    env:
+      BUILDOZER_ALLOW_KIVY_BUILD_FROM_ROOT: 1
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Fixes the "No buildozer.spec found" error by creating it dynamically
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            cmake libffi-dev libssl-dev build-essential
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Buildozer and Cython
+        run: |
+          pip install --upgrade pip
+          pip install Cython==0.29.33 virtualenv buildozer setuptools
+
+      # Dynamically creates and modifies the spec file inside the safe environment
       - name: Generate Buildozer Specification
         run: |
           buildozer init
-          
-          # Configure application core properties
           sed -i 's/# title = My Application/title = OpenBulletToPython/' buildozer.spec
           sed -i 's/# package.name = myapp/package.name = openbullettopython/' buildozer.spec
           sed -i 's/# package.domain = org.test/package.domain = org.openbullet/' buildozer.spec
-          
-          # Target Android 14 requirements (API 34)
           sed -i 's/android.api = 31/android.api = 34/' buildozer.spec
           sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
-          
-          # Declare app library requirements (Kivy interface wrapper + dependencies)
           sed -i 's/requirements = python3,kivy/requirements = python3,kivy,requests,beautifulsoup4/' buildozer.spec
 
-      # Speeds up successive compilations using safe folder structures
-      - name: Cache Buildozer Dependencies
+      - name: Cache Buildozer Global Directory
         uses: actions/cache@v4
         with:
-          path: .buildozer
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          path: ~/.buildozer
+          key: ${{ runner.os }}-buildozer-global-${{ hashFiles('buildozer.spec') }}
 
-      # Compiles APK explicitly allowing execution inside root Docker configurations
+      # Compiled with an automated "yes" pipeline to pass any unseen SDK terms
       - name: Compile Application Package
-        env:
-          BUILDOZER_ALLOW_KIVY_BUILD_FROM_ROOT: 1
         run: |
-          buildozer android debug
+          yes | buildozer -v android debug
 
       - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
