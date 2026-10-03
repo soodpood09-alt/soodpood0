@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK for Android 14
 
 on:
   push:
@@ -17,24 +17,40 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Cache Buildozer Project Folder
+      # Fixes the "No buildozer.spec found" error by creating it dynamically
+      - name: Generate Buildozer Specification
+        run: |
+          buildozer init
+          
+          # Configure application core properties
+          sed -i 's/# title = My Application/title = OpenBulletToPython/' buildozer.spec
+          sed -i 's/# package.name = myapp/package.name = openbullettopython/' buildozer.spec
+          sed -i 's/# package.domain = org.test/package.domain = org.openbullet/' buildozer.spec
+          
+          # Target Android 14 requirements (API 34)
+          sed -i 's/android.api = 31/android.api = 34/' buildozer.spec
+          sed -i 's/# android.accept_sdk_license = False/android.accept_sdk_license = True/' buildozer.spec
+          
+          # Declare app library requirements (Kivy interface wrapper + dependencies)
+          sed -i 's/requirements = python3,kivy/requirements = python3,kivy,requests,beautifulsoup4/' buildozer.spec
+
+      # Speeds up successive compilations using safe folder structures
+      - name: Cache Buildozer Dependencies
         uses: actions/cache@v4
         with:
           path: .buildozer
           key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
 
-      # Explicitly pointing Buildozer to the GitHub Workspace directory
-      - name: Build APK with Buildozer
+      # Compiles APK explicitly allowing execution inside root Docker configurations
+      - name: Compile Application Package
         env:
           BUILDOZER_ALLOW_KIVY_BUILD_FROM_ROOT: 1
         run: |
-          cd $GITHUB_WORKSPACE
-          yes | buildozer android debug
+          buildozer android debug
 
-      # Adjusted path to find the APK inside the workspace directory
-      - name: Upload APK Artifact
+      - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BulletDroid-debug-APK
-          path: ${{ github.workspace }}/bin/*.apk
+          name: OpenBulletToPython-Android14-APK
+          path: bin/*.apk
           
