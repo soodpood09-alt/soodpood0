@@ -30,13 +30,12 @@ jobs:
       run: chmod +x gradlew
 
     # Step 4: Cache the Native C/C++ Build Dependencies (NDK) to speed up compilation
-    # This project compiles native libraries (.so files) for arm64-v8a, armeabi-v7a, x86, and x86_64
     - name: Cache Android NDK and CMake
       uses: actions/cache@v4
       with:
         path: |
           ~/.android/ndk
-          ${{ android_home }}/ndk
+          ${{ env.ANDROID_HOME }}/ndk
         key: ${{ runner.os }}-ndk-cache
 
     # Step 5: Build Debug APK using the Gradle wrapper
