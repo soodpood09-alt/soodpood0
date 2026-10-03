@@ -13,21 +13,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the project source code
+    # Step 1: Check out the project source code completely
     - name: Checkout Source Code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-    # Step 2: Set up Java Development Kit (JDK 17 required for modern Android/Compose architectures)
+    # Step 2: Set up Java Development Kit (Upgraded to v5 to fix deprecation)
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
+        # Fallback locator: Searches the entire workspace for build files to resolve the caching error
+        cache-dependency-path: |
+          **/build.gradle*
+          **/gradle-wrapper.properties
+          **/gradle.versions.toml
 
-    # Step 3: Grant execute permissions to the Gradle Wrapper script
+    # Step 3: Grant execute permissions to the Gradle Wrapper script wherever it lives
     - name: Grant Execute Permission for Gradlew
-      run: chmod +x gradlew
+      run: |
+        if [ -f ./gradlew ]; then
+          chmod +x ./gradlew
+        else
+          find . -name "gradlew" -exec chmod +x {} +
+        fi
 
     # Step 4: Cache the Native C/C++ Build Dependencies (NDK) to speed up compilation
     - name: Cache Android NDK and CMake
@@ -38,16 +50,22 @@ jobs:
           ${{ env.ANDROID_HOME }}/ndk
         key: ${{ runner.os }}-ndk-cache
 
-    # Step 5: Build Debug APK using the Gradle wrapper
-    # This automatically compiles the source code across multi-DEX files
+    # Step 5: Dynamically locate gradlew and build the Debug APK
     - name: Build Debug APK with Gradle
-      run: ./gradlew assembleDebug
+      run: |
+        GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
+        if [ -z "$GRADLEW_PATH" ]; then
+          echo "Error: gradlew wrapper not found anywhere in the repository!"
+          exit 1
+        fi
+        cd $(dirname "$GRADLEW_PATH")
+        ./gradlew assembleDebug
 
     # Step 6: Locate and upload the built APK file as a downloadable artifact
     - name: Upload Build Artifact (Debug APK)
       uses: actions/upload-artifact@v4
       with:
         name: fdroid-basic-debug-apk
-        path: app/build/outputs/apk/debug/*.apk
+        path: '**/build/outputs/apk/debug/*.apk'
         retention-days: 7
         
