@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master", "develop" ]
   pull_request:
     branches: [ "main", "master", "develop" ]
-  workflow_dispatch: # Allows you to manually trigger this build from the GitHub UI
+  workflow_dispatch: 
 
 jobs:
   build-f-droid:
@@ -13,25 +13,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout YOUR empty repository first (so GitHub registers the workflow run)
+    # Step 1: Checkout Workflow Repository
     - name: Checkout Workflow Repository
       uses: actions/checkout@v4
 
-    # Step 2: Automatically download the official F-Droid Source Code into the runner
+    # Step 2: Download the official F-Droid Source Code
     - name: Download F-Droid Source Code
       uses: actions/checkout@v4
       with:
-        repository: 'f-droid/fdroidclient' # Official F-Droid repository
-        path: 'fdroid-source'             # Downloads it into a folder named fdroid-source
+        repository: 'f-droid/fdroidclient' 
+        path: 'fdroid-source'             
 
-    # Step 3: Set up Java Development Kit (JDK 17) required by F-Droid
+    # Step 3: Set up Java Development Kit (JDK 17)
     - name: Set up JDK 17
       uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # Step 4: Fix permissions and ensure the Gradle Wrapper exists
+    # Step 4: Prepare Gradle Wrapper
     - name: Prepare Gradle Wrapper
       working-directory: fdroid-source
       run: |
@@ -42,16 +42,18 @@ jobs:
         fi
         chmod +x ./gradlew
 
-    # Step 5: Automatically compile the official F-Droid code into a Debug APK
+    # Step 5: Compile F-Droid
     - name: Build F-Droid APK
       working-directory: fdroid-source
       run: ./gradlew assembleDebug
 
-    # Step 6: Locate the automatically generated APK and upload it as a Github Artifact
-    - name: Upload Generated F-Droid APK
+    # Step 6: Dynamic discovery to target the artifact exactly where it was generated
+    - name: Locate and Upload Generated F-Droid APK
       uses: actions/upload-artifact@v4
       with:
         name: official-fdroid-debug-apk
-        path: 'fdroid-source/app/build/outputs/apk/debug/*.apk'
+        path: |
+          fdroid-source/**/*.apk
+        if-no-files-found: error
         retention-days: 7
         
