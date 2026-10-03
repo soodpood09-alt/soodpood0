@@ -11,7 +11,7 @@ jobs:
   build:
     runs-on: ubuntu-24.04
 
-    # This globally forces Buildozer to ignore the root warning across ALL steps
+    # Globally overrides the Buildozer root privilege check blocker
     env:
       BUILDOZER_ALLOW_KIVY_BUILD_FROM_ROOT: 1
 
@@ -19,14 +19,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Removed libtinfo5 which is unavailable in Ubuntu 24.04
       - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             git zip unzip openjdk-17-jdk autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
             cmake libffi-dev libssl-dev build-essential
 
+      # Installs modern Python core architecture
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -37,7 +39,7 @@ jobs:
           pip install --upgrade pip
           pip install Cython==0.29.33 virtualenv buildozer setuptools
 
-      # Dynamically creates and modifies the spec file inside the safe environment
+      # Creates specification profiles on the host workspace
       - name: Generate Buildozer Specification
         run: |
           buildozer init
@@ -54,7 +56,7 @@ jobs:
           path: ~/.buildozer
           key: ${{ runner.os }}-buildozer-global-${{ hashFiles('buildozer.spec') }}
 
-      # Compiled with an automated "yes" pipeline to pass any unseen SDK terms
+      # Automatically handles interactive prompts via piped inputs
       - name: Compile Application Package
         run: |
           yes | buildozer -v android debug
